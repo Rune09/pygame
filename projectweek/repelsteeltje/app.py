@@ -23,7 +23,6 @@ def opstart():
     Startscherm
     """
     GameDisplay = create_main_function()
-    pygame.init()
     titel = pygame.image.load("images/backgrounds/logo.png")
     titel = pygame.transform.scale(titel, (pygame.display.get_surface().get_size()[
                                    0], pygame.display.get_surface().get_size()[1]))
@@ -32,7 +31,27 @@ def opstart():
     )[0]/2, pygame.display.get_surface().get_size()[1]/2
     GameDisplay.blit(titel, titel_loc)
     pygame.display.flip()
-    pygame.time.delay(2000)
+    pygame.time.delay(1090)
+
+    titel = pygame.image.load("images/backgrounds/logo2.png")
+    titel = pygame.transform.scale(titel, (pygame.display.get_surface().get_size()[
+                                   0], pygame.display.get_surface().get_size()[1]))
+    titel_loc = titel.get_rect()
+    titel_loc.center = pygame.display.get_surface().get_size(
+    )[0]/2, pygame.display.get_surface().get_size()[1]/2
+    GameDisplay.blit(titel, titel_loc)
+    pygame.display.flip()
+    pygame.time.delay(900)
+
+    titel = pygame.image.load("images/backgrounds/logo3.png")
+    titel = pygame.transform.scale(titel, (pygame.display.get_surface().get_size()[
+                                   0], pygame.display.get_surface().get_size()[1]))
+    titel_loc = titel.get_rect()
+    titel_loc.center = pygame.display.get_surface().get_size(
+    )[0]/2, pygame.display.get_surface().get_size()[1]/2
+    GameDisplay.blit(titel, titel_loc)
+    pygame.display.flip()
+    pygame.time.delay(1000)
 
 
 def gedaan_met_spelen():
@@ -40,7 +59,6 @@ def gedaan_met_spelen():
     Scherm vr als je sterft
     """
     GameDisplay = create_main_function()
-    pygame.init()
     titel = pygame.image.load("images/backgrounds/death.jpg")
     titel = pygame.transform.scale(titel, (pygame.display.get_surface().get_size()[
                                    0], pygame.display.get_surface().get_size()[1]))
@@ -49,10 +67,9 @@ def gedaan_met_spelen():
     )[0]/2, pygame.display.get_surface().get_size()[1]/2
     GameDisplay.blit(titel, titel_loc)
     pygame.display.flip()
-    pygame.time.delay(20)
 
 
-def render_frame(surface, klasse):  # rendert frame en laadt image blijkbaar
+def render_frame(surface, klasse, score):  # rendert frame en laadt image blijkbaar
     """
     Roept de render in een bepaalde klasse op
 
@@ -61,7 +78,7 @@ def render_frame(surface, klasse):  # rendert frame en laadt image blijkbaar
     surface : class Surface
     klasse : een klasse
     """
-    klasse.render(surface)
+    klasse.render(surface, score)
 
 
 def clear_surface(surface):  # achtergrond resetten zodat er geen trail achterblijft
@@ -88,9 +105,11 @@ def process_key_input(state, elapsed_seconds):
     frame = ship.speed * elapsed_seconds
     pressed = pygame.key.get_pressed()
     if pressed[pygame.K_SPACE]:
-        state.add_bullet(state)
+        state.add_bullet(state, 0)
     if pressed[pygame.K_a]:
-        state.add_dragon()
+        state.add_dragon(1)
+    if pressed[pygame.K_z]:
+        state.add_bullet(state, 1)
     if pressed[pygame.K_RIGHT]:
         old_x = ship.position[0]
         old_y = ship.position[1]
@@ -108,7 +127,7 @@ class Background:
     klasse voor de achtergrond
     """
 
-    def __init__(self, path):
+    def __init__(self, path, score):
         """
         initialiseert klasse met gegeven path
 
@@ -137,7 +156,7 @@ class Background:
         """
         return pygame.transform.flip(self.__create_image(), flip_x=True, flip_y=False)
 
-    def render(self, surface):
+    def render(self, surface, clock):
         """
         rendert de eigen afbeelding op een meegegeven surface
 
@@ -260,8 +279,12 @@ class Dragon:
         self.__image = pygame.image.load('images/sprites/dragon.png')
         self.__position = (
             20, pygame.display.get_surface().get_size()[1] - 175)
-        self.__x = randrange(-50, (pygame.display.get_surface().get_size()
-                             [0] + 50), (pygame.display.get_surface().get_size()[0] + 100))
+        temp = randint(0, 1)
+        if temp <= 0.5:
+            self.__x = (-50)
+        else:
+            self.__x = (pygame.display.get_surface().get_size()
+                        [0] + 50)
         self.__y = 0  # pygame.display.get_surface().get_size()[1]
         self.speed = 690
         self.direction = randint(-1, 1)
@@ -349,7 +372,7 @@ class State:
     __background : class Background
     """
 
-    def __init__(self, background=Background('images/backgrounds/background_game.jpg'), circle_x=512, circle_y=384):
+    def __init__(self, background=Background('images/backgrounds/background_game.jpg', 0), circle_x=512, circle_y=384):
         """
         Initialiseert een state
 
@@ -440,7 +463,7 @@ class State:
                 result.append(self.__bullets[i])
         self.__bullets = result
 
-    def update(self, time, clock):
+    def update(self, time, clock, score_clock):
         """
         roept de update functies op
 
@@ -448,7 +471,7 @@ class State:
         ----------
         time : float
         """
-        self.__score.update(clock)
+        #self.__score.update(clock, score_clock)
         bullet = []
         dragon = []
         for i in range(0, len(self.__bullets)):
@@ -466,7 +489,7 @@ class State:
         self.cooldown.update(time)
         self.cooldown_dragon.update(time)
 
-    def add_bullet(self, state):
+    def add_bullet(self, state, isZ):
         """
         Voegt een bullet toe aan de game
 
@@ -474,7 +497,16 @@ class State:
         ----------
         state : State
         """
-        if self.cooldown.ready:
+
+        if isZ:
+            avatar = state.spaceship
+            pos = avatar.position
+            x = pos[0]
+            y = pos[1]
+            b = Bullet(x, y)
+            self.__bullets.append(b)
+            self.__sound.play_sound('shots/bullet')
+        elif self.cooldown.ready:
             avatar = state.spaceship
             pos = avatar.position
             x = pos[0]
@@ -484,16 +516,19 @@ class State:
             self.cooldown.reset()
             self.__sound.play_sound('shots/bullet')
 
-    def add_dragon(self):
+    def add_dragon(self, isA):
         """
         Voegt een draak aan de game toe
         """
-        if self.cooldown_dragon.ready:
+        if isA:
+            drachon = Dragon()
+            self.__dragons.append(drachon)
+        elif self.cooldown_dragon.ready:
             drachon = Dragon()
             self.__dragons.append(drachon)
             self.cooldown_dragon.reset()
 
-    def render(self, surface):
+    def render(self, surface, score):
         """
         Rendert state(moet nog aan gewerkt worden cuz iets klopt er niet)
 
@@ -502,14 +537,14 @@ class State:
         surface : object surface
         """
 
-        self.__background.render(surface)
+        self.__background.render(surface, 0)
         self.__spaceship.render(surface)
         self.__spaceship.render(surface)
         for bullet in self.__bullets:
             bullet.render(surface)
         for dragon in self.dragon:
             dragon.render(surface)
-        self.__score.render(surface)
+        score.render(surface)
         pygame.display.flip()
 
     def add_animations(self, animation):
@@ -532,8 +567,7 @@ def render_score_counter(surface, score):
     surface : Surface
     score : int
     """
-    print(score)
-    font = pygame.font.SysFont("Times New Roman", 50)
+    font = pygame.font.SysFont("Monocraft", 50)
     Label = font.render(("SCORE: " + str(score)), 1, (0, 0, 0))
     pygame.Surface.blit(surface, Label, (0, 0))
 
@@ -555,8 +589,8 @@ class Score_counter:
         Label = font.render(("SCORE: " + str(self.score)), 1, (0, 0, 0))
         pygame.Surface.blit(surface, Label, (0, 0))
 
-    def update(self, clock):
-        self.score += round(clock.get_time()/100)
+    def update(self, clock, time=0):
+        self.score += round(clock.get_time()/1000) + time
 
 
 def render_spaceship(ship, surface, position):
@@ -651,16 +685,6 @@ class Spaceship:
             templijst = list(new_value)
             templijst[0] = 0 + (self.__image.get_width()/2)
             new_value = tuple(templijst)
-        # out of bounds check boven
-        # if (new_value[1] < 0 + (self.__image.get_height()/2)):
-        #    templijst = list(new_value)
-        #    templijst[1] = 0 + (self.__image.get_height()/2)
-        #    new_value = tuple(templijst)
-        # out of bounds check onder
-        # if (new_value[1] > (y-(self.__image.get_height()/2))):
-        #    templijst = list(new_value)
-        #    templijst[1] = (y-(self.__image.get_height()/2))
-        #    new_value = tuple(templijst)
         self.__position = new_value
         self.__bounding_box = pygame.Rect(
             self.__position[0] - self.__image.get_width()/2, self.__position[1] - self.__image.get_height()/2, self.__image.get_width(), self.__image.get_height())
@@ -700,8 +724,9 @@ class FrameBasedAnimation:
         duration : float
         klasse : class State
         """
-        self.x = klasse.x
-        self.y = klasse.y
+
+        self.x = klasse.position[0]
+        self.y = klasse.position[1]
         self.duration_frame = duration
         self.frames = frames
         self.count = 0
@@ -747,31 +772,37 @@ def main():
     elapsed_seconds = 0
     total_seconds = 0
     score = Score_counter()
-    score_clock = Clock()
     frames = [pygame.image.load(
         f'images/sprites/explosion/{i}.png') for i in range(1, 9 + 1)]
-    while active:
 
+    while active:
         # een call nr update elke keer de loop doorlopen wordt.
-        if total_seconds <= 10:
+        if total_seconds <= 7:
             if round(total_seconds) % 5 == 0:
-                state.add_dragon()
-        elif total_seconds <= 20:
+                state.add_dragon(0)
+        elif total_seconds <= 12:
             if round(total_seconds) % 3 == 0:
-                state.add_dragon()
+                state.add_dragon(0)
+        elif total_seconds <= 20:
+            if round(total_seconds) % 2 == 0:
+                state.add_dragon(0)
         else:
             if round(total_seconds) % 1 == 0:
-                state.add_dragon()
+                state.add_dragon(0)
 
-        state.update(elapsed_seconds, score_clock)
+        score_clock = 1
+        state.update(elapsed_seconds, clock, score_clock)
         process_key_input(state, elapsed_seconds)
         elapsed_seconds = 0
-        render_frame(surface, state)
+        render_frame(surface, state, score)
         # kijkt of een draak de avatar raakt, if so, end game
         dragons = [dragon.bounding_box for dragon in state.dragon]
         if pygame.Rect.collidelist(state.spaceship.bounding_box, dragons) != -1:
-            game_over = Background('images/backgrounds/death.jpg')
-            render_frame(surface, game_over)
+            game_over = Background('images/backgrounds/death.jpg', 0)
+
+            animation1 = FrameBasedAnimation(frames, 0.1, state.spaceship)
+            animation1.render(surface)
+            render_frame(surface, game_over, score)
             active = False
         bullets = [bullet.bounding_box for bullet in state.bullets]
         # canLoop zorgt ervoor dat er maar 1 keer in if statement kan gegaan worden zodat er per cycle maar 1 draak en bullet verwijderd worden
@@ -783,20 +814,20 @@ def main():
                 state.remove_dragon(i)
                 state.remove_bullet(
                     pygame.Rect.collidelist(dragons[i], bullets))
-            # animation1 = FrameBasedAnimation(frames, 0.1, i)
+                score_clock += 500
+
         for event in pygame.event.get():  # voor window te kunnen sluiten
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_b:
+                if event.key == pygame.K_b or event.key == pygame.K_ESCAPE:
                     active = False
-                if event.key == pygame.K_f:
-                    pygame.display.toggle_fullscreen()
+                # if event.key == pygame.K_f:
+                #    pygame.display.toggle_fullscreen()
             if event.type == pygame.QUIT:
                 active = False
         clock.tick()
-        score_clock.tick()
-        score.update(score_clock)
         elapsed_seconds += clock.get_time()/1000
         total_seconds += clock.get_time()/1000
+        score.update(clock, score_clock)
 
     # Voor death screen te behouden zodat je opnieuw kan spelen
     end = True
@@ -804,8 +835,8 @@ def main():
     pygame.mixer.music.load('music/death.ogg')
     pygame.mixer.music.play()
 
-    game_over = Background('images/backgrounds/death.jpg')
-    render_frame(surface, game_over)
+    game_over = Background('images/backgrounds/death.jpg', 0)
+    render_frame(surface, game_over, score)
     gedaan_met_spelen()
     while end:
         for event in pygame.event.get():  # voor window te kunnen sluiten
